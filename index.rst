@@ -52,6 +52,47 @@
 
 .. Add content here.
 
+Introduction
+============
+
+This tech note discusses the memory usage of the reprocessing code on example
+cases in order to give insight into the true memory needs of a typical 
+reprocessing job.  This is a summary of DM-11818, DM-12051, and DM-12198.
+
+Dataset Information
+===================
+The data used here is from the LSST GPFS storage that is located at 
+/datasets/hsc/repo.  The first two sets of trials (the singleFrameDriver and 
+coaddDriver trials) discussed here are only in the HSC-G band, while the 
+multiBandDriver trials use the HSC-G and HSC-R bands.
+
+Due to our desire to keep run-times low while using one core for most of our 
+trials, we used very small datasets. The table below details what 
+visits and bands are used for each type of trial discussed in this technote.
+
+<table>
+  <tr>
+    <th>Code Name</th>
+    <th>Bands</th>
+    <th>Visits</th>
+  </tr>
+  <tr>
+    <td>singleFrameDriver.py</td>
+    <td>HSC-G</td>
+    <td>11382 and 11690</td>
+  </tr>
+  <tr>
+    <td>coaddDriver.py</td>
+    <td>HSC-R</td>
+    <td>11442, 11446, 11450, 11470, 11476, 11478, 11506, 11508, 11532, 11534</td>
+  </tr>
+  <tr>
+    <td> multiBandDriver.py </td>
+    <td> HSC-G and HSC-R </td>
+    <td> 9852, 9856, 9860, 9864, 9868, 9870, 9888, 9890, 9898, 9900, 9904, 9906, 9912, 11568, 11572, 11576, 11582, 11588, 11590, 11596, 11598, 11442, 11446, 11450, 11470, 11476, 11478, 11506, 11508, 11532, 11534 </td>
+  </tr>
+ </table>
+
 .. .. rubric:: References
 
 .. Make in-text citations with: :cite:`bibkey`.
