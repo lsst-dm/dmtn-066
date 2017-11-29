@@ -253,125 +253,16 @@ coaddDriver Trials
 ==================
 In order to investigate the memory usage of coaddDriver, I used three main methods:
 
--  tracking memory usage with /usr/bin/time.
+- tracking memory usage with /usr/bin/time (shown in jiramemcheck.sh, line 16).
+- tracking the memory usage of a --slurm job (shown in jiramemcheck.sh, line 18) with sacct after the job has run.
+- tracking the memory usage of a hand-made slurm script (shown in jiraslurmcheck.sl) with sacct after the job has run.
 
-.. code-block:: python
-   :name: coaddDriver /usr/bin/time
-
-   /usr/bin/time -f "\n%E elapsed, \n%U user, \n%S system, \n%M memory\n" coaddDriver.py /datasets/hsc/repo --rerun private/thrush/RD:private/thrush/RE --cores 1 --id tract=8766^8767 filter=HSC-R --selectId ccd=0..8^10..103 visit=11442^11446^11450^11470^11476^11478^11506^11508^11532^11534 
-
--  tracking the memory usage of a --slurm job with sacct after the job has run.
-
-.. code-block:: python
-   :name: coaddDriver --slurm
-   
-   coaddDriver.py  /datasets/hsc/repo --rerun private/thrush/RD:private/thrush/RF --batch-type=slurm --mpiexec='-bind-to socket' --job coaddWR --time 600 --cores 1 --id tract=8766^8767 filter=HSC-R --selectId ccd=0..8^10..103 visit=11442^11446^11450^11470^11476^11478^11506^11508^11532^11534 
-
--  tracking the memory usage of a hand-made slurm script with sacct after the job has run
-
-.. code-block:: shell
-   :name: coaddDriver trial
-
-   #!/bin/bash -l
-
-   #SBATCH -p debug
-   #SBATCH -N 1
-   #SBATCH -n 1
-   #SBATCH -t 00:30:00
-   #SBATCH -J coaddWRtest
-
-   srun coaddDriver.py /datasets/hsc/repo --rerun private/thrush/RD:private/thrush/RG --id tract=8766^8767 filter=HSC-R --selectId ccd=0..8^10..103 visit=11442^11446^11450^11470^11476^11478^11506^11508^11532^11534 --cores 1
- 
-
-It should be noted that in order to set up the necessary files to run coaddDriver.py, I ran the following script, where I only used WideR visits in order to cut down on time.
-
-.. code-block:: shell
-   :name: beginning shell
-
-   #!/bin/bash
-
-   DIR=private/thrush/RD 
-
-   export wideVisitsR=11442^11446^11450^11470^11476^11478^11506^11508^11532^11534
-
-   makeSkyMap.py /datasets/hsc/repo --rerun $DIR
-
-   singleFrameDriver.py /datasets/hsc/repo --rerun $DIR --batch-type slurm --mpiexec='-bind-to socket' --job WideR --id visit=$wideVisitsR ccd=0..8^10..103 --cores 112 --time 900 --clobber-versions
-
-   mosaic.py /datasets/hsc/repo --rerun $DIR --numCoresForRead=12 --id tract=8766 ccd=0..8^10..103 visit=$wideVisitsR --diagnostics --diagDir=/scratch/thrush/anyPath/RC/mosaic_diag/R --clobber-versions
-   mosaic.py /datasets/hsc/repo --rerun $DIR --numCoresForRead=12 --id tract=8767 ccd=0..8^10..103 visit=$wideVisitsR --diagnostics --diagDir=/scratch/thrush/anyPath/RC/mosaic_diag/R --clobber-versions
-
-After running the /usr/bin/time trial, the memory usage was found to be approximately 912400 K.  However, the --slurm trial only reported a memory usage of 2592K, while the hand-made slurm script reported a memory usage of 371100 K.  All of these computations took approximately 20 minutes to complete, on average.  
-
-These results mirror those of the singleFrameDriver trials above in that the largest memory usage belongs to the /usr/bin/time run, while the smallest memory usage belongs to the --slurm job. As stated in the singleFrameDriver section above, I believe that /usr/bin/time is more accurate in reporting its memory usage simply because it accounts for SWAP memory usage as well as normal memory usage, thus giving a more holistic view of the situation.
+It should be noted that in order to set up the necessary files to run coaddDriver.py, I ran the first 15 lines of jiramemcheck.sh where I only used WideR visits in order to cut down on time.
 
 multiBandDriver Trials
 ======================
 
-Prior to running the multiBandDriver trials described below, the following code was run:
-
-.. code-block:: shell
-   :name: timecheckMBD trial
-
-   #!/bin/bash
-
-
-   DIR=private/thrush/RD  
-
-   export wideVisitsG=9852^9856^9860^9864^9868^9870^9888^9890^9898^9900^9904^9906^9912^11568^11572^11576^11582^11588^11590^11596^11598
-   export wideVisitsR=11442^11446^11450^11470^11476^11478^11506^11508^11532^11534
-   makeSkyMap.py /datasets/hsc/repo --rerun $DIR
-
-   singleFrameDriver.py /datasets/hsc/repo --rerun $DIR --batch-type slurm --mpiexec='-bind-to socket' --job WideG --id visit=$wideVisitsG ccd=0..8^10..103 --cores 112 --time 900 --clobber-versions
-   singleFrameDriver.py /datasets/hsc/repo --rerun $DIR --batch-type slurm --mpiexec='-bind-to socket' --job WideR --id visit=$wideVisitsR ccd=0..8^10..103 --cores 112 --time 900 --clobber-versions
-
-   mosaic.py /datasets/hsc/repo --rerun $DIR --numCoresForRead=12 --id tract=8766 ccd=0..8^10..103 visit=$wideVisitsG --diagnostics --diagDir=/scratch/thrush/anyPath/RC/mosaic_diag/G --clobber-versions
-   mosaic.py /datasets/hsc/repo --rerun $DIR --numCoresForRead=12 --id tract=8767 ccd=0..8^10..103 visit=$wideVisitsG --diagnostics --diagDir=/scratch/thrush/anyPath/RC/mosaic_diag/G --clobber-versions
-   mosaic.py /datasets/hsc/repo --rerun $DIR --numCoresForRead=12 --id tract=8766 ccd=0..8^10..103 visit=$wideVisitsR --diagnostics --diagDir=/scratch/thrush/anyPath/RC/mosaic_diag/R --clobber-versions
-   mosaic.py /datasets/hsc/repo --rerun $DIR --numCoresForRead=12 --id tract=8767 ccd=0..8^10..103 visit=$wideVisitsR --diagnostics --diagDir=/scratch/thrush/anyPath/RC/mosaic_diag/R --clobber-versions
-
-   coaddDriver.py  /datasets/hsc/repo --rerun $DIR --batch-type=slurm --mpiexec='-bind-to socket' --job coaddWG --time 200 --nodes 1 --procs 12  --id tract=8766^8767 filter=HSC-G --selectId ccd=0..8^10..103 visit=$wideVisitsG 
-   coaddDriver.py  /datasets/hsc/repo --rerun $DIR --batch-type=slurm --mpiexec='-bind-to socket' --job coaddWR --time 200 --nodes 1 --procs 12 --id tract=8766^8767 filter=HSC-R --selectId ccd=0..8^10..103 visit=$wideVisitsR 
-
-There are two main methods that I used in order to find the memory usage of one multiBandDriver job, where the G and R bands are combined for "wide" visits:
-
--  using the --slurm method (as detailed below, which used 96 cores in order to cut down on time)
-
-.. code-block:: python
-   :name: MBD --slurm
-
-   multiBandDriver.py /datasets/hsc/repo --rerun $DIR:/scratch/thrush/anyPath/RG --batch-type=slurm --mpiexec='-bind-to socket' --job mtWide --cores 96 --time 8000 --id tract=8766^8767 filter=HSC-G^HSC-R
-
--  creating a handmade slurm script(shown below, which used 1 core and ran for approximately 4 days)
-
-.. code-block:: shell
-   :name: MBD hand made slurm script
-
-   #!/bin/bash -l
-
-   #SBATCH -p debug
-   #SBATCH -n 1
-   #SBATCH -N 1
-   #SBATCH -t 96:00:00
-   #SBATCH -J mtWide_test
-
-   srun multiBandDriver.py /datasets/hsc/repo --rerun private/thrush/RD:private/thrush/RH --cores 1 --id tract=8766^8767 filter=HSC-G^HSC-R
-
--  running the multiBandDriver code with the /usr/bin/time method.  You should note that this trial was only completed on 1 patch of 1 tract, thus allowing the run time to be ~1/162 of the original run time.  
-
-.. code-block:: python
-   :name: MBD /usr/bin/time method
-
-   /usr/bin/time -f "\n%E elapsed, \n%U user, \n%S system, \n%M memory\n" multiBandDriver.py /datasets/hsc/repo --rerun private/thrush/RD:/scratch/thrush/anyPath/RH --job mtWide_bin --cores 1 --id tract=8766 patch=1,1 filter=HSC-G^HSC-R
- 
-Usual multiBandDriver jobs combine more than 2 bands, but I cut down the number of bands in the interest of time.
-
-
-The results were as follows. The --slurm method used 2680K*96 cores = 257,280 K of memory in order to work and took approximately 8 hours to run. However, the handmade slurm script (which took four days to run) used 374,212 K of memory in order to work. Both of these seem strangely low, but they did finish successfully.  On the other hand, the /usr/bin/time trial used 1,727,120K of memory and only took about 1 hour to complete.  Of course, this is not a truly fair comparison as different numbers of cores were used and a smaller data set was used for the /usr/bin/time calculation, but these results give a bit of insight into the memory needs of the multiBandDriver.py code.
-
-
-
-.. rubric:: References
+.. .. rubric:: References
 
 .. Make in-text citations with: :cite:`bibkey`.
 
