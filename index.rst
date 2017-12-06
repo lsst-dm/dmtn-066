@@ -102,6 +102,24 @@ Finding Memory Usages
 =====================
 Before delving into the respective codes and their data usage, it is important to discuss how the memory usages are found.  In this section, I will be discussing how the "sacct" slurm calls are invoked as well as how I extracted the memory usage from the /usr/bin/time code calls below. 
 
+Simply put, the "sacct" slurm call allows us to look at the resources used by a code after it was run.  In my case, I used sacct in order to get the average memory usage of a job and reported that as the memory usage.  An example of such a call would be as follows:
+
+.. code-block:: python
+   :name: sacct
+
+   sacct -u thrush --format=JobID,JobName,AveRSS,Elapsed 
+
+Here, sacct looks for jobs associated with my username, and then gives me the job IDs, the job name that I assigned it, the average memory used for the number of cores used, and the time it took for the job to run.  Thus, since I'm using one core, I can say that the average memory reported is the memory used.    
+
+The /usr/bin/time calls work slightly differently.  These calls (shown below) simply look at the real-time memory usage of the command-line code call by looking into the /usr/bin/time files and reporting back the time the job to be completed, the user name, the system used, and the memory utilized. 
+  
+.. code-block:: python
+   :name: processCcd baseline
+
+   /usr/bin/time -f "\n%E elapsed, \n%U user, \n%S system, \n%M memory\n" processCcd.py /datasets/hsc/repo --rerun private/thrush/RF --id visit=11382 ccd=0..8^10..103 --clobber-versions --clobber-config
+
+Once the job is completed, the data from /usr/bin/time is printed on the screen, where it can be recorded.  Of course, this is done so as to record the memory usage of a job that is not using slurm to run, but instead is run on the command line. 
+
 Baseline Memory
 ===============
 
