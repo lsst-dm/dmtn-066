@@ -98,6 +98,93 @@ The LSST'S lsst-dev01 system was used to process this data, along with SLURM for
 
 For these trials, the w_2017_30 version of LSST's software stack was used. 
 
+Finding Memory Usages
+=====================
+Before delving into the respective codes and their data usage, it is important to discuss how the memory usages are found.  In this section, I will be discussing how the "sacct" slurm calls are invoked as well as how I extracted the memory usage from the /usr/bin/time code calls below. 
+
+Baseline Memory
+===============
+
+processCcd.py Trial
+-------------------
+Prior to running the tests below, the baseline memory usage was established by running a similar trial as those below by using processCcd.py.  Of course, the processCcd.py code accomplishes the same task as the codes shown in the singleFrameDriver section, however processCcd.py is much more transparent with its memory usage and seems to have reasonable memory usage.  The code used in this case is that shown below:    
+
+.. code-block:: python
+   :name: processCcd baseline
+
+   /usr/bin/time -f "\n%E elapsed, \n%U user, \n%S system, \n%M memory\n" processCcd.py /datasets/hsc/repo --rerun private/thrush/RF --id visit=11382 ccd=0..8^10..103 --clobber-versions --clobber-config
+
+After running the code snippet above 5 times and averaging those results together, the average memory usage reported by /usr/bin/time was found to be 3,338,000 K.  However, after removing the --clobber statements from the code above, the memory usage of 5 runs averaged together came out to be 2,288,000 K.  
+
+Different Number of Visits and CCDs
+-----------------------------------
+Before testing the methods discussed above, it is important to see first how memory scales with the number of visits and ccds that will be used.  In order to ascertain this scaling, three different trials were run for the batch-type method, the /usr/bin/time method and the homemade slurm script method discussed above ( the salloc method was not used as it give results almost identical to the batch-type method): one visit and one ccd, one visit with two ccds, and two visits with one ccd.  
+
+Batch-Type trials
+^^^^^^^^^^^^^^^^^
+The batch-type method was run with the three code snippets shown below.  
+
+.. code-block:: python
+   :name: batch-type 1v1c
+
+   singleFrameDriver.py /datasets/hsc/repo --rerun $DIR --batch-type slurm --mpiexec='-bind-to socket' --job Memtest --id visit=11382 ccd=0 --cores 1 --time 400 --clobber-versions
+
+
+.. code-block:: python
+   :name: batch-type 1v2c
+
+   singleFrameDriver.py /datasets/hsc/repo --rerun $DIR --batch-type slurm --mpiexec='-bind-to socket' --job Memtest --id visit=11382 ccd=0^1 --cores 1 --time 400 --clobber-versions
+
+.. code-block:: python
+   :name: batch-type 2v1c
+
+   singleFrameDriver.py /datasets/hsc/repo --rerun $DIR --batch-type slurm --mpiexec='-bind-to socket' --job Memtest --id visit=11382^11690 ccd=0 --cores 1 --time 400 --clobber-versions
+
+Surprisingly, all three trials gave the same memory usage: 2592K, which seems to vastly underestimate the actual memory usage. As you can see, these results imply that the memory usage in this case does not scale at all with the number of ccds or visits. 
+
+/usr/bin/time Trials
+^^^^^^^^^^^^^^^^^^^^
+For these runs, the following codes were used:
+
+.. code-block:: python
+   :name: usr/bin/time 1v1c
+
+   /usr/bin/time -f "\n%E elapsed, \n%U user, \n%S system, \n%M memory\n" singleFrameDriver.py /datasets/hsc/repo --rerun $DIR --id visit=11382 ccd=0 --cores 1 --clobber-versions
+
+.. code-block:: python
+   :name: usr/bin/time 1v2c
+
+   /usr/bin/time -f "\n%E elapsed, \n%U user, \n%S system, \n%M memory\n" singleFrameDriver.py /datasets/hsc/repo --rerun $DIR --id visit=11382 ccd=0^1 --cores 1 --clobber-versions
+
+.. code-block:: python
+   :name: usr/bin/time 2v1c
+
+   /usr/bin/time -f "\n%E elapsed, \n%U user, \n%S system, \n%M memory\n" singleFrameDriver.py /datasets/hsc/repo --rerun $DIR --id visit=11382^11690 ccd=0 --cores 1 --clobber-versions
+
+The first run gave a memory usage of 1,238,300K which seems high when compared to the /usr/bin/time trials shown below.  Similarly, the second run gave a memory usage of 1,373,300K, and the third run had a memory usage of 1,374,100K.  In this case, the memory usage does not scale linearly, but (as expected) it does scale with the number of ccd's and the number of visits. 
+
+Homemade slurm script trials
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Finally, the following base codes was run:
+
+.. code-block:: shell
+   :name: slurm 1v1c
+   
+   #!/bin/bash -l
+ 
+   #SBATCH -p debug
+   #SBATCH -N 1
+   #SBATCH -n 1
+   #SBATCH -t 03:00:00
+   #SBATCH -J test
+ 
+   srun singleFrameDriver.py /datasets/hsc/repo --rerun private/thrush/RD --id ccd=0 visit=11382 --cores 1
+
+When the code was ran as-is, sacct MaxRSS reported 398,400K in memory usage. When ccd=0^1 visit=11382, the memory usage jumped to 419,300K, as was also the case for the ccd=0 visit=11382^11690 run.
+
+Like the /usr/bin/time trials above, the memory usage does not scale linearly as there seems to be a base memory usage that is needed. However, an increase in either visits or ccds produces roughly the same increase in memory usage. Additionally, as stated in previous sections, although this underestimates memory usage when compared to /usr/bin/time trials, this seems to be a step up from the memory reporting done by jobs who employ the --slurm method of invoking slurm.
+
+
 singleFrameDriver Trials
 ========================
 In order to find the memory usage of a singleFrameDriver.py job, and how it scales with the number of visits and the number of cores, four main trials were run:
@@ -146,88 +233,6 @@ In order to find the memory usage of a singleFrameDriver.py job, and how it scal
    #SBATCH -J test
 
    srun singleFrameDriver.py /datasets/hsc/repo --rerun private/thrush/RF --id ccd=0..8^10..103 visit=11382 --cores 1
-
-Baseline Memory
----------------
-
-processCcd.py Trial
-^^^^^^^^^^^^^^^^^^^
-Prior to running the tests above, the baseline memory usage was established by running a similar trial as those above by using processCcd.py.  Of course, the processCcd.py code accomplishes the same task as the codes shown above, however processCcd.py is much more transparent with its memory usage and seems to have reasonable memory usage.  The code used in this case is that shown below:    
-
-.. code-block:: python
-   :name: processCcd baseline
-
-   /usr/bin/time -f "\n%E elapsed, \n%U user, \n%S system, \n%M memory\n" processCcd.py /datasets/hsc/repo --rerun private/thrush/RF --id visit=11382 ccd=0..8^10..103 --clobber-versions --clobber-config
-
-After running the code snippet above 5 times and averaging those results together, the average memory usage reported by /usr/bin/time was found to be 3,338,000 K.  However, after removing the --clobber statements from the code above, the memory usage of 5 runs averaged together came out to be 2,288,000 K.  
-
-Different Number of Visits and CCDs
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Before testing the methods discussed above, it is important to see first how memory scales with the number of visits and ccds that will be used.  In order to ascertain this scaling, three different trials were run for the batch-type method, the /usr/bin/time method and the homemade slurm script method discussed above ( the salloc method was not used as it give results almost identical to the batch-type method): one visit and one ccd, one visit with two ccds, and two visits with one ccd.  
-
-Batch-Type trials
-"""""""""""""""""
-The batch-type method was run with the three code snippets shown below.  
-
-.. code-block:: python
-   :name: batch-type 1v1c
-
-   singleFrameDriver.py /datasets/hsc/repo --rerun $DIR --batch-type slurm --mpiexec='-bind-to socket' --job Memtest --id visit=11382 ccd=0 --cores 1 --time 400 --clobber-versions
-
-
-.. code-block:: python
-   :name: batch-type 1v2c
-
-   singleFrameDriver.py /datasets/hsc/repo --rerun $DIR --batch-type slurm --mpiexec='-bind-to socket' --job Memtest --id visit=11382 ccd=0^1 --cores 1 --time 400 --clobber-versions
-
-.. code-block:: python
-   :name: batch-type 2v1c
-
-   singleFrameDriver.py /datasets/hsc/repo --rerun $DIR --batch-type slurm --mpiexec='-bind-to socket' --job Memtest --id visit=11382^11690 ccd=0 --cores 1 --time 400 --clobber-versions
-
-Surprisingly, all three trials gave the same memory usage: 2592K, which seems to vastly underestimate the actual memory usage. As you can see, these results imply that the memory usage in this case does not scale at all with the number of ccds or visits. 
-
-/usr/bin/time Trials
-""""""""""""""""""""
-For these runs, the following codes were used:
-
-.. code-block:: python
-   :name: usr/bin/time 1v1c
-
-   /usr/bin/time -f "\n%E elapsed, \n%U user, \n%S system, \n%M memory\n" singleFrameDriver.py /datasets/hsc/repo --rerun $DIR --id visit=11382 ccd=0 --cores 1 --clobber-versions
-
-.. code-block:: python
-   :name: usr/bin/time 1v2c
-
-   /usr/bin/time -f "\n%E elapsed, \n%U user, \n%S system, \n%M memory\n" singleFrameDriver.py /datasets/hsc/repo --rerun $DIR --id visit=11382 ccd=0^1 --cores 1 --clobber-versions
-
-.. code-block:: python
-   :name: usr/bin/time 2v1c
-
-   /usr/bin/time -f "\n%E elapsed, \n%U user, \n%S system, \n%M memory\n" singleFrameDriver.py /datasets/hsc/repo --rerun $DIR --id visit=11382^11690 ccd=0 --cores 1 --clobber-versions
-
-The first run gave a memory usage of 1,238,300K which seems high when compared to the /usr/bin/time trials shown below.  Similarly, the second run gave a memory usage of 1,373,300K, and the third run had a memory usage of 1,374,100K.  In this case, the memory usage does not scale linearly, but (as expected) it does scale with the number of ccd's and the number of visits. 
-
-Homemade slurm script trials
-""""""""""""""""""""""""""""
-Finally, the following base codes was run:
-
-.. code-block:: shell
-   :name: slurm 1v1c
-   
-   #!/bin/bash -l
- 
-   #SBATCH -p debug
-   #SBATCH -N 1
-   #SBATCH -n 1
-   #SBATCH -t 03:00:00
-   #SBATCH -J test
- 
-   srun singleFrameDriver.py /datasets/hsc/repo --rerun private/thrush/RD --id ccd=0 visit=11382 --cores 1
-
-When the code was ran as-is, sacct MaxRSS reported 398,400K in memory usage. When ccd=0^1 visit=11382, the memory usage jumped to 419,300K, as was also the case for the ccd=0 visit=11382^11690 run.
-
-Like the /usr/bin/time trials above, the memory usage does not scale linearly as there seems to be a base memory usage that is needed. However, an increase in either visits or ccds produces roughly the same increase in memory usage. Additionally, as stated in previous sections, although this underestimates memory usage when compared to /usr/bin/time trials, this seems to be a step up from the memory reporting done by jobs who employ the --slurm method of invoking slurm.
 
 Batch-type Results
 ------------------
@@ -301,6 +306,9 @@ It should be noted that in order to set up the necessary files to run coaddDrive
    mosaic.py /datasets/hsc/repo --rerun $DIR --numCoresForRead=12 --id tract=8766 ccd=0..8^10..103 visit=$wideVisitsR --diagnostics --diagDir=/scratch/thrush/anyPath/RC/mosaic_diag/R --clobber-versions
    mosaic.py /datasets/hsc/repo --rerun $DIR --numCoresForRead=12 --id tract=8767 ccd=0..8^10..103 visit=$wideVisitsR --diagnostics --diagDir=/scratch/thrush/anyPath/RC/mosaic_diag/R --clobber-versions
 
+Results
+-------
+
 After running the /usr/bin/time trial, the memory usage was found to be approximately 912400 K.  However, the --slurm trial only reported a memory usage of 2592K, while the hand-made slurm script reported a memory usage of 371100 K.  All of these computations took approximately 20 minutes to complete, on average.  
 
 These results mirror those of the singleFrameDriver trials above in that the largest memory usage belongs to the /usr/bin/time run, while the smallest memory usage belongs to the --slurm job. As stated in the singleFrameDriver section above, I believe that /usr/bin/time is more accurate in reporting its memory usage simply because it accounts for SWAP memory usage as well as normal memory usage, thus giving a more holistic view of the situation.
@@ -308,7 +316,7 @@ These results mirror those of the singleFrameDriver trials above in that the lar
 multiBandDriver Trials
 ======================
 
-Prior to running the multiBandDriver trials described below, the following code was run:
+In order to set up the correct dataset that will be used for the multiBandDriver trials, the following code was run:
 
 .. code-block:: shell
    :name: timecheckMBD trial
@@ -333,16 +341,17 @@ Prior to running the multiBandDriver trials described below, the following code 
    coaddDriver.py  /datasets/hsc/repo --rerun $DIR --batch-type=slurm --mpiexec='-bind-to socket' --job coaddWG --time 200 --nodes 1 --procs 12  --id tract=8766^8767 filter=HSC-G --selectId ccd=0..8^10..103 visit=$wideVisitsG 
    coaddDriver.py  /datasets/hsc/repo --rerun $DIR --batch-type=slurm --mpiexec='-bind-to socket' --job coaddWR --time 200 --nodes 1 --procs 12 --id tract=8766^8767 filter=HSC-R --selectId ccd=0..8^10..103 visit=$wideVisitsR 
 
-There are two main methods that I used in order to find the memory usage of one multiBandDriver job, where the G and R bands are combined for "wide" visits:
+There are three main methods that I used in order to find the memory usage of one multiBandDriver job, where the G and R bands are combined for "wide" visits. In order to reduce runtime of the code, only 1 patch of the sky is used so as to reduce the computation time down to an hour.  The three methods include:
 
--  using the --slurm method (as detailed below, which used 96 cores in order to cut down on time)
+-  using the --slurm method
 
 .. code-block:: python
    :name: MBD --slurm
 
-   multiBandDriver.py /datasets/hsc/repo --rerun $DIR:/scratch/thrush/anyPath/RG --batch-type=slurm --mpiexec='-bind-to socket' --job mtWide --cores 96 --time 8000 --id tract=8766^8767 filter=HSC-G^HSC-R
+   multiBandDriver.py /datasets/hsc/repo --rerun $DIR:/scratch/thrush/anyPath/RG --batch-type=slurm --mpiexec='-bind-to socket' --job mtWide --cores 1 --time 8000 --id tract=8766 patch=1,1 filter=HSC-G^HSC-R --clobber-versions
 
--  creating a handmade slurm script(shown below, which used 1 core and ran for approximately 4 days)
+
+-  creating a handmade slurm script
 
 .. code-block:: shell
    :name: MBD hand made slurm script
@@ -355,9 +364,9 @@ There are two main methods that I used in order to find the memory usage of one 
    #SBATCH -t 96:00:00
    #SBATCH -J mtWide_test
 
-   srun multiBandDriver.py /datasets/hsc/repo --rerun private/thrush/RD:private/thrush/RH --cores 1 --id tract=8766^8767 filter=HSC-G^HSC-R
+   srun multiBandDriver.py /datasets/hsc/repo --rerun private/thrush/RD:private/thrush/RH --cores 1 --id tract=8766 patch=1,1 filter=HSC-G^HSC-R --clobber-versions
 
--  running the multiBandDriver code with the /usr/bin/time method.  You should note that this trial was only completed on 1 patch of 1 tract, thus allowing the run time to be ~1/162 of the original run time.  
+-  running the multiBandDriver code with the /usr/bin/time method 
 
 .. code-block:: python
    :name: MBD /usr/bin/time method
@@ -366,8 +375,10 @@ There are two main methods that I used in order to find the memory usage of one 
  
 Usual multiBandDriver jobs combine more than 2 bands, but I cut down the number of bands in the interest of time.
 
+Results
+-------
 
-The results were as follows. The --slurm method used 2680K*96 cores = 257,280 K of memory in order to work and took approximately 8 hours to run. However, the handmade slurm script (which took four days to run) used 374,212 K of memory in order to work. Both of these seem strangely low, but they did finish successfully.  On the other hand, the /usr/bin/time trial used 1,727,120K of memory and only took about 1 hour to complete.  Of course, this is not a truly fair comparison as different numbers of cores were used and a smaller data set was used for the /usr/bin/time calculation, but these results give a bit of insight into the memory needs of the multiBandDriver.py code.
+The --slurm method used 2600 K of memory in order to work. However, the handmade slurm script used 365,512 K of memory in order to work. Both of these seem strangely low, but they did finish successfully.  On the other hand, the /usr/bin/time trial used 1,727,120K of memory.  Of course, these results echo those given above for the singleFrameDriver and coaddDriver codes.
 
 
 
