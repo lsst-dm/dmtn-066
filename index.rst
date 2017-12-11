@@ -120,14 +120,14 @@ The /usr/bin/time calls work slightly differently as these are generic Linux com
 
    /usr/bin/time -f "\n%E elapsed, \n%U user, \n%S system, \n%M memory\n" processCcd.py /datasets/hsc/repo --rerun private/thrush/RF --id visit=11382 ccd=0..8^10..103 
 
-Once the job is completed, the data from /usr/bin/time is printed on the screen, where it can be recorded.  Of course, this is done so as to record the memory usage of a job that is not using slurm to run, but instead is run on the command line. 
+Once the job is completed, the data from /usr/bin/time is printed on the screen, where it can be recorded.  This is done so as to record the memory usage of a job that is not using slurm to run, but instead is run on the command line. 
 
 Baseline Memory
 ===============
 
 processCcd.py Trial
 -------------------
-Prior to running the tests below, the baseline memory usage was established by running a similar trial as those below by using processCcd.py.  Of course, the processCcd.py code accomplishes the same task as the codes shown in the singleFrameDriver section, however processCcd.py is much more transparent with its memory usage and seems to have reasonable memory usage.  The code used in this case is that shown below:    
+Prior to running the tests below, the baseline memory usage was established by running a similar trial as those below by using processCcd.py.  The processCcd.py code accomplishes the same task as the codes shown in the singleFrameDriver section, however processCcd.py is much more transparent with its memory usage and seems to have reasonable memory usage.  The code used in this case is that shown below:    
 
 .. code-block:: python
    :name: processCcd baseline
@@ -138,7 +138,7 @@ After running the code snippet above 5 times and averaging those results togethe
 
 Different Number of Visits and CCDs
 -----------------------------------
-Before testing the methods discussed below, it is important to see first how memory scales with the number of visits and ccds that will be used.  In order to ascertain this scaling, three different trials were run for the batch-type method, the /usr/bin/time method and the homemade slurm script method: one visit and one ccd, one visit with two ccds, and two visits with one ccd.  
+Before testing the methods discussed below, it is important to see first how memory depends on the number of visits and ccds that will be used.  In order to ascertain this scaling, three different trials were run for the batch-type method, the /usr/bin/time method and the homemade slurm script method: one visit and one ccd, one visit with two ccds, and two visits with one ccd.  
 
 Batch-Type trials
 ^^^^^^^^^^^^^^^^^
@@ -254,25 +254,15 @@ In order to find the memory usage of a singleFrameDriver.py job, and how it scal
 
    srun singleFrameDriver.py /datasets/hsc/repo --rerun private/thrush/RF --id ccd=0..8^10..103 visit=11382 --cores 1
 
-Batch-type Results
+Results
 ------------------
-The code shown for the first bullet point in this section was run 5 times, and the average memory for each run was found by using sacct and finding the AveRSS.  The average memory that was found with this method was found to be 306,500 K.  Of course, this is much lower than the baseline above.
+The average memory for the --slurm method was found to be 306,500 K.  As you can see, this is much lower than the baseline memory shown in section 5.1 above.
 
-/usr/bin/time Results
----------------------
-Unlike the other three trials discussed in this section, this is most like the baseline trial from the previous section since both code calls do not use slurm.  The average memory usage found with the code as shown above was 2,725,000 K (averaged over 5 trials).  However, when the --clobber option was deleted, the memory usage jumped up to 3,155,000 K (averaged over 5 trials).  Of course, this is exactly opposite the tred suggested by processCcd.py.
+The /usr/bin/time method, which is most like the baseline trial from section 5.1, has an average memory usage of 3,155,000 K (averaged over 5 trials).
 
-Handmade Slurm Script Results
------------------------------
-The homemade slurm script had memory usage at 398,000 K (averaged over 5 trials) as reported by sacct for AveRSS after the trials were run.  Of course, this is slightly higher than expected from a code that is so similar to the Batch trial described above. 
+The homemade slurm script had memory usage at 398,000 K (averaged over 5 trials) as reported by sacct for AveRSS after the trials were run.  This is slightly higher than expected from a code that is so similar to the Batch trial described above. 
 
-salloc Results
---------------
-Although this type of code call is slightly different from those described in the "Batch-type Results" described above, the results were very similar.  By looking into top.txt, the average memory usage was found to be 310,500 K.  Of course, this is not so shocking as salloc simply acts as an interactive slurm session, so although this call looks quite different from the batch-type results, they are essentially the same.    
-
-Conclusion
-----------
-After searching through the literatures, it would seem that while the /usr/bin/time trials account for SWAP when it reports its memory usage, slurm does not.  Because of this, it is reasonable to say that the /usr/bin/time should be larger.  However, there could be some memory saving tricks employed by slurm that I am not accounting for which would make their memory reporting just as trustworty.  
+Finally, the salloc method gave an average memory usage of 310,500 K, which was found by looking into the top.txt file created by the salloc call above.  This is not so shocking as salloc simply acts as an interactive slurm session, so although this call looks quite different from the batch-type results, they are essentially the same.    
 
 coaddDriver Trials
 ==================
@@ -394,7 +384,11 @@ There are three main methods that I used in order to find the memory usage of on
 Results
 -------
 
-The --slurm method used 2600 K of memory in order to work. However, the handmade slurm script used 365,512 K of memory in order to work. Both of these seem strangely low, but they did finish successfully.  On the other hand, the /usr/bin/time trial used 1,727,120K of memory.  Of course, these results echo those given above for the singleFrameDriver and coaddDriver codes.
+The --slurm method used 2600 K of memory in order to work. However, the handmade slurm script used 365,512 K of memory in order to work. Both of these seem strangely low, but they did finish successfully.  On the other hand, the /usr/bin/time trial used 1,727,120K of memory.  These results echo those given above for the singleFrameDriver and coaddDriver codes.
+
+Conclusion
+==========
+After searching through the literature, it would seem that while the /usr/bin/time trials account for SWAP when it reports its memory usage, slurm does not.  Because of this, it is reasonable to say that the /usr/bin/time should be larger.  However, there could be some memory saving tricks employed by slurm that I am not accounting for which would make their memory reporting just as trustworty.  
 
 
 
