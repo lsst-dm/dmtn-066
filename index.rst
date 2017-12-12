@@ -356,7 +356,7 @@ There are three main methods that I used in order to find the memory usage of on
 .. code-block:: python
    :name: MBD --slurm
 
-   multiBandDriver.py /datasets/hsc/repo --rerun $DIR:/scratch/thrush/anyPath/RG --batch-type=slurm --mpiexec='-bind-to socket' --job mtWide --cores 1 --time 8000 --id tract=8766 patch=1,1 filter=HSC-G^HSC-R --clobber-versions
+   multiBandDriver.py /datasets/hsc/repo --rerun $DIR:/scratch/thrush/anyPath/RG --batch-type=slurm --mpiexec='-bind-to socket' --job mtWide --cores 1 --time 8000 --id tract=8766 patch=1,1 filter=HSC-G^HSC-R 
 
 
 -  creating a handmade slurm script
@@ -372,7 +372,7 @@ There are three main methods that I used in order to find the memory usage of on
    #SBATCH -t 96:00:00
    #SBATCH -J mtWide_test
 
-   srun multiBandDriver.py /datasets/hsc/repo --rerun private/thrush/RD:private/thrush/RH --cores 1 --id tract=8766 patch=1,1 filter=HSC-G^HSC-R --clobber-versions
+   srun multiBandDriver.py /datasets/hsc/repo --rerun private/thrush/RD:private/thrush/RH --cores 1 --id tract=8766 patch=1,1 filter=HSC-G^HSC-R 
 
 -  running the multiBandDriver code with the /usr/bin/time method 
 
@@ -392,7 +392,7 @@ After searching through the literature, it would seem that while the /usr/bin/ti
 
 
 
-.. rubric:: References
+.. .. rubric:: References
 
 .. Make in-text citations with: :cite:`bibkey`.
 
