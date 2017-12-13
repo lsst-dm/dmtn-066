@@ -46,8 +46,6 @@
 
 .. note::
 
-   **This technote is not yet published.**
-
    Pipeline driver tasks such as singleFrameDriver, coaddDriver, and multiBandDriver have been tested to see what their memory usage is.  This technote will detail how these memory tests were ran and what results were found.
 
 .. Add content here.
